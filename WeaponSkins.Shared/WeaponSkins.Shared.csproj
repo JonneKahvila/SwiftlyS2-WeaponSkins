@@ -10,7 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SwiftlyS2.CS2" Version="*-*" ExcludeAssets="runtime" PrivateAssets="all" />
+    <!-- Keep in lockstep with WeaponSkins.csproj so both projects build against one framework version. -->
+    <PackageReference Include="SwiftlyS2.CS2" Version="1.4.2" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
