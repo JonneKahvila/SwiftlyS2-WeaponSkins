@@ -20,14 +20,15 @@
 - Completely game-based econ data dumping (no network required)
 
 ## Main Configuration
-The `config.jsonc` should have the following structure in the `Main` section:
+The `config.jsonc` should have the following structure in the `WeaponSkins` section:
 ```jsonc
 {
-  "Main": {
+  "WeaponSkins": {
     "StorageBackend": "inherit",
     "InventoryUpdateBackend": "hook",
     "SyncFromDatabaseWhenPlayerJoin": false,
-    "ItemLanguages": []
+    "ItemLanguages": [],
+    "MenuPermission": ""
   }
 }
 ```
@@ -55,18 +56,25 @@ This configuration helps optimizing your memory usage, reducing 80MB at max.
 Check the `Code` column in this table for all available languages: 
 [Available language codes](https://swiftlys2.net/docs/development/translations/#language-codes)
 
+### `MenuPermission`
+Permission required to run the `ws` menu command. Leave empty (the default) to let everyone open the menu.
+
+This gates the command itself, so players without it get the standard "no permission" response instead of a
+menu full of disabled entries. Changing it takes effect on config reload — no server restart needed.
+
 ## Item Permissions
 Gate entire feature groups with a single permission string in `config.jsonc`:
 ```jsonc
 {
-  "Main": {
+  "WeaponSkins": {
     "ItemPermissions": {
       "WeaponSkins": "vip",
       "KnifeSkins": "vip",
       "GloveSkins": "vip",
       "Stickers": "vip",
       "Keychains": "vip",
-      "Agents": "vip"
+      "Agents": "vip",
+      "MusicKits": "vip"
     }
   }
 }
@@ -85,4 +93,14 @@ Leave a value empty or remove it to keep the feature available to everyone. Play
 ## Publishing
 
 - Use the `dotnet publish -c Release` command to build and package your plugin.
-- Distribute the generated zip file or the contents of the `build/publish` directory.
+- The plugin is staged in `build/publish/WeaponSkins/` and packaged as `build/WeaponSkins.zip`.
+- Distribute the generated zip file or the contents of `build/publish/WeaponSkins/`.
+
+To deploy straight into a local server instead, override the publish directory:
+
+```sh
+dotnet publish -c Release -p:PublishDir=/path/to/csgo/addons/swiftlys2/plugins/WeaponSkins/
+```
+
+The zip step is skipped when you override `PublishDir`, so publishing into a live server won't
+archive the rest of your plugins folder.

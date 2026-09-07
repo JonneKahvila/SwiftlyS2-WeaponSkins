@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Configuration;
-
 namespace WeaponSkins.Configuration;
 
 public class ItemPermissionConfig

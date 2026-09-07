@@ -1,3 +1,7 @@
 build/
 obj/
 bin/
+
+# Framework assemblies come from the SwiftlyS2.CS2 NuGet package, never from the repo.
+SwiftlyS2.CS2.dll
+*.zip

@@ -1,22 +1,11 @@
-using System.IO.MemoryMappedFiles;
-using System.Runtime.InteropServices;
-
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared;
-using SwiftlyS2.Shared.Players;
-using SwiftlyS2.Shared.Commands;
-using SwiftlyS2.Shared.SteamAPI;
-
-using SwiftlyS2.Shared.Natives;
-using SwiftlyS2.Shared.SchemaDefinitions;
 
 using WeaponSkins.Configuration;
 using WeaponSkins.Injections;
-using WeaponSkins.Services;
 using WeaponSkins.Shared;
 
 namespace WeaponSkins;
@@ -35,6 +24,15 @@ namespace WeaponSkins;
 )]
 public partial class WeaponSkins : BasePlugin
 {
+    /// <summary>
+    /// Shared interface key, following the documented <c>PluginName.ServiceName.vX</c> convention.
+    /// Bump the version suffix on a breaking change to <see cref="IWeaponSkinAPI"/>.
+    /// </summary>
+    public const string SharedInterfaceKey = "WeaponSkins.Api.v1";
+
+    /// <summary>Unversioned key this plugin shipped with before <see cref="SharedInterfaceKey"/>.</summary>
+    public const string LegacySharedInterfaceKey = "WeaponSkins.API";
+
     private ServiceProvider _provider = null!;
 
     public WeaponSkins(ISwiftlyCore core) : base(core)
@@ -43,10 +41,12 @@ public partial class WeaponSkins : BasePlugin
 
     public override void Load(bool hotReload)
     {
-        Core.Configuration.InitializeJsonWithModel<MainConfigModel>("config.jsonc", "Main")
+        Core.Configuration.InitializeJsonWithModel<MainConfigModel>("config.jsonc", "WeaponSkins")
             .Configure(builder =>
             {
-                builder.AddJsonFile("config.jsonc", false, true);
+                // Must be the full path from GetConfigPath: a bare filename resolves against the
+                // server's working directory, not the plugin folder.
+                builder.AddJsonFile(Core.Configuration.GetConfigPath("config.jsonc"), false, true);
             });
 
         StickerFixService.Initialize();
@@ -67,8 +67,8 @@ public partial class WeaponSkins : BasePlugin
 
 
         collection
-            .AddOptions<MainConfigModel>()
-            .BindConfiguration("Main");
+            .AddOptionsWithValidateOnStart<MainConfigModel>()
+            .BindConfiguration("WeaponSkins");
 
         _provider = collection.BuildServiceProvider();
 
@@ -89,11 +89,19 @@ public partial class WeaponSkins : BasePlugin
 
     public override void Unload()
     {
+        // Framework events/commands are torn down for us, but the container owns the FreeSql and
+        // SQLite connection pools; without this they leak on every hot reload.
+        // Disposing the container also disposes CommandService, which unregisters its command.
+        _provider?.Dispose();
     }
 
     public override void ConfigureSharedInterface(IInterfaceManager interfaceManager)
     {
-        interfaceManager.AddSharedInterface<IWeaponSkinAPI, WeaponSkinAPI>("WeaponSkins.API",
-            _provider.GetRequiredService<WeaponSkinAPI>());
+        var api = _provider.GetRequiredService<WeaponSkinAPI>();
+
+        interfaceManager.AddSharedInterface<IWeaponSkinAPI, WeaponSkinAPI>(SharedInterfaceKey, api);
+
+        // Kept so plugins built against the pre-versioned key keep resolving.
+        interfaceManager.AddSharedInterface<IWeaponSkinAPI, WeaponSkinAPI>(LegacySharedInterfaceKey, api);
     }
 }

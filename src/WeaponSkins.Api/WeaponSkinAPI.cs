@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 
+using Microsoft.Extensions.Logging;
+
 using SwiftlyS2.Shared.Players;
 
 using WeaponSkins.Database;
@@ -17,6 +19,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
     private EconService EconService { get; init; }
     private ItemPermissionService ItemPermissionService { get; init; }
     private WeaponSkinGetterAPI WeaponSkinGetterAPI { get; init; }
+    private ILogger<WeaponSkinAPI> Logger { get; init; }
 
     public IReadOnlyDictionary<string, ItemDefinition> Items => EconService.Items.AsReadOnly();
 
@@ -33,7 +36,8 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         DataService dataService,
         StorageService storageService,
         EconService econService,
-        ItemPermissionService itemPermissionService
+        ItemPermissionService itemPermissionService,
+        ILogger<WeaponSkinAPI> logger
     )
     {
         InventoryUpdateService = inventoryUpdateService;
@@ -42,6 +46,30 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         EconService = econService;
         ItemPermissionService = itemPermissionService;
         WeaponSkinGetterAPI = weaponSkinGetterAPI;
+        Logger = logger;
+    }
+
+    /// <summary>
+    /// Runs a storage write off the game thread. The provider is resolved on the caller's thread so a
+    /// concurrent <see cref="SetExternalStorageProvider"/> can't redirect an in-flight write, and faults
+    /// are logged rather than surfacing later as unobserved task exceptions.
+    /// </summary>
+    private void Persist(string operation,
+        Func<IStorageProvider, Task> action)
+    {
+        var provider = StorageService.Get();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await action(provider);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, "Failed to persist {Operation} to storage provider {Provider}.",
+                    operation, provider.Name);
+            }
+        });
     }
 
     public void SetWeaponSkins(IEnumerable<WeaponSkinData> skins,
@@ -50,7 +78,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.UpdateWeaponSkins(skins);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().StoreSkinsAsync(skins));
+            Persist("weapon skins", provider => provider.StoreSkinsAsync(skins));
         }
     }
 
@@ -60,7 +88,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.UpdateKnifeSkins(knives);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().StoreKnifesAsync(knives));
+            Persist("knife skins", provider => provider.StoreKnifesAsync(knives));
         }
     }
 
@@ -70,7 +98,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.UpdateGloveSkins(gloves);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().StoreGlovesAsync(gloves));
+            Persist("glove skins", provider => provider.StoreGlovesAsync(gloves));
         }
     }
 
@@ -208,7 +236,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.ResetWeaponSkin(steamid, team, definitionIndex);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().RemoveSkinAsync(steamid, team, definitionIndex));
+            Persist("weapon skin reset", provider => provider.RemoveSkinAsync(steamid, team, definitionIndex));
         }
     }
 
@@ -220,7 +248,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.ResetKnifeSkin(steamid, team);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().RemoveKnifeAsync(steamid, team));
+            Persist("knife skin reset", provider => provider.RemoveKnifeAsync(steamid, team));
         }
     }
 
@@ -231,7 +259,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.ResetGloveSkin(steamid, team);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().RemoveGloveAsync(steamid, team));
+            Persist("glove skin reset", provider => provider.RemoveGloveAsync(steamid, team));
         }
     }
 
@@ -243,7 +271,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         DataService.AgentDataService.SetAgent(steamid, team, agentIndex);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().StoreAgentsAsync(new[] { (steamid, team, agentIndex) }));
+            Persist("agent skin", provider => provider.StoreAgentsAsync([(steamid, team, agentIndex)]));
         }
     }
 
@@ -254,7 +282,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         DataService.AgentDataService.TryRemoveAgent(steamid, team);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().RemoveAgentAsync(steamid, team));
+            Persist("agent skin reset", provider => provider.RemoveAgentAsync(steamid, team));
         }
     }
 
@@ -266,7 +294,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.UpdateMusicKit(steamid, musicKitIndex);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().StoreMusicKitsAsync([(steamid, musicKitIndex)]));
+            Persist("music kit", provider => provider.StoreMusicKitsAsync([(steamid, musicKitIndex)]));
         }
     }
 
@@ -277,7 +305,7 @@ public class WeaponSkinAPI : IWeaponSkinAPI
         InventoryUpdateService.ResetMusicKit(steamid);
         if (permanent)
         {
-            var _ = Task.Run(async () => await StorageService.Get().RemoveMusicKitAsync(steamid));
+            Persist("music kit reset", provider => provider.RemoveMusicKitAsync(steamid));
         }
     }
 

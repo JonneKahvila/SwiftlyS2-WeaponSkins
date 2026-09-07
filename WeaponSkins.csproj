@@ -12,7 +12,16 @@
     <AssemblyName>WeaponSkins</AssemblyName>
     <OutputPath>$(MSBuildThisFileDirectory)build/</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <PublishDir>D:/cs2server/game/csgo/addons/swiftlys2/plugins/WeaponSkins</PublishDir>
+
+    <!-- Evaluated before PublishDir is defaulted below: only zip when publishing to the in-repo
+         staging dir, so publishing straight into a live server doesn't zip its whole plugins folder. -->
+    <CreatePublishZip Condition="'$(CreatePublishZip)' == '' and '$(PublishDir)' == ''">true</CreatePublishZip>
+    <CreatePublishZip Condition="'$(CreatePublishZip)' == ''">false</CreatePublishZip>
+
+    <!-- Publishes into the repo by default. Point it at a live server with
+         `dotnet publish -c Release -p:PublishDir=<addons>/swiftlys2/plugins/WeaponSkins/`. -->
+    <PublishStagingDir>$(MSBuildThisFileDirectory)build/publish/</PublishStagingDir>
+    <PublishDir Condition="'$(PublishDir)' == ''">$(PublishStagingDir)$(AssemblyName)/</PublishDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -52,12 +61,8 @@
     <DefineConstants>$(DefineConstants);WORKFLOW;WORKFLOW_VERSION="$(WorkflowVersion)"</DefineConstants>
     </PropertyGroup>
 
-  <Target Name="CreateZip" AfterTargets="Publish">
-    <ItemGroup>
-      <PublishFiles Include="$(PublishDir)**\*.*" />
-    </ItemGroup>
-    
-    <ZipDirectory SourceDirectory="$(PublishDir)../" DestinationFile="$(OutputPath)../$(AssemblyName).zip" Overwrite="true" />
+  <Target Name="CreateZip" AfterTargets="Publish" Condition="'$(CreatePublishZip)' == 'true'">
+    <ZipDirectory SourceDirectory="$(PublishStagingDir)" DestinationFile="$(OutputPath)$(AssemblyName).zip" Overwrite="true" />
   </Target>
 
 </Project> 
