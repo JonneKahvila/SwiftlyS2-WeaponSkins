@@ -1,6 +1,7 @@
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -9,8 +10,6 @@ using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.SteamAPI;
-
-using Tomlyn.Extensions.Configuration;
 
 using SwiftlyS2.Shared.Natives;
 using SwiftlyS2.Shared.SchemaDefinitions;
@@ -44,10 +43,10 @@ public partial class WeaponSkins : BasePlugin
 
     public override void Load(bool hotReload)
     {
-        Core.Configuration.InitializeTomlWithModel<MainConfigModel>("config.toml", "Main")
+        Core.Configuration.InitializeJsonWithModel<MainConfigModel>("config.jsonc", "Main")
             .Configure(builder =>
             {
-                builder.AddTomlFile("config.toml", false, true);
+                builder.AddJsonFile("config.jsonc", false, true);
             });
 
         StickerFixService.Initialize();

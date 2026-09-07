@@ -20,13 +20,16 @@
 - Completely game-based econ data dumping (no network required)
 
 ## Main Configuration
-The `config.toml` should have the following structure in `Main` section:
-```toml
-[Main]
-StorageBackend = "inherit"
-InventoryUpdateBackend = "hook"
-SyncFromDatabaseWhenPlayerJoin = false
-ItemLanguages = []
+The `config.jsonc` should have the following structure in the `Main` section:
+```jsonc
+{
+  "Main": {
+    "StorageBackend": "inherit",
+    "InventoryUpdateBackend": "hook",
+    "SyncFromDatabaseWhenPlayerJoin": false,
+    "ItemLanguages": []
+  }
+}
 ```
 
 #### `StorageBackend`
@@ -53,15 +56,20 @@ Check the `Code` column in this table for all available languages:
 [Available language codes](https://swiftlys2.net/docs/development/translations/#language-codes)
 
 ## Item Permissions
-Gate entire feature groups with a single permission string in `config.toml`:
-```toml
-[Main.ItemPermissions]
-WeaponSkins = "vip"
-KnifeSkins = "vip"
-GloveSkins = "vip"
-Stickers = "vip"
-Keychains = "vip"
-Agents = "vip"
+Gate entire feature groups with a single permission string in `config.jsonc`:
+```jsonc
+{
+  "Main": {
+    "ItemPermissions": {
+      "WeaponSkins": "vip",
+      "KnifeSkins": "vip",
+      "GloveSkins": "vip",
+      "Stickers": "vip",
+      "Keychains": "vip",
+      "Agents": "vip"
+    }
+  }
+}
 ```
 Leave a value empty or remove it to keep the feature available to everyone. Players without the required permission cannot open the related menus, and any equipped cosmetics of that type are hidden until they regain access.
 
