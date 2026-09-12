@@ -57,7 +57,7 @@ public class EconService
 
     private Dictionary<string, string> RevolvingLootLists { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    private const int SchemaVersion = 25;
+    private const int SchemaVersion = 26;
 
     public EconService(ISwiftlyCore core,
         ILogger<EconService> logger,
@@ -665,16 +665,27 @@ public class EconService
                 var internalName = musicKit.Name;
 
                 string? itemName = null;
-                if (musicKit.HasSubKey("loc_name"))
+                var locSubKey = musicKit.GetSubKey("loc_name");
+                if (locSubKey != null)
                 {
-                    itemName = musicKit.Value["loc_name"].EToString();
+                    itemName = locSubKey.Value.EToString();
                 }
-                else if (musicKit.HasSubKey("name"))
+                else
                 {
-                    itemName = musicKit.Value["name"].EToString();
+                    var nameSubKey = musicKit.GetSubKey("name");
+                    if (nameSubKey != null)
+                    {
+                        itemName = nameSubKey.Value.EToString();
+                    }
                 }
 
-                var index = musicKit.HasSubKey("id") ? musicKit.Value["id"].EToInt32() : 0;
+                var index = 0;
+                var idSubKey = musicKit.GetSubKey("id");
+                if (idSubKey != null)
+                {
+                    index = idSubKey.Value.EToInt32();
+                }
+
                 if (index == 0 && int.TryParse(musicKit.Name, out var parsedIndex))
                 {
                     index = parsedIndex;

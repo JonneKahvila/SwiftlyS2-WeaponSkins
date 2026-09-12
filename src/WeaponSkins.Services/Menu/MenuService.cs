@@ -73,6 +73,50 @@ public partial class MenuService
         Core.MenusAPI.OpenMenuForPlayer(player, main.Build());
     }
 
+    public void OpenWeaponSkinMenu(IPlayer player)
+    {
+        if (!ItemPermissionService.CanUseWeaponSkins(player.SteamID)) return;
+        var menu = BuildWeaponSkinMenu(player);
+        Core.MenusAPI.OpenMenuForPlayer(player, menu);
+    }
+
+    public void OpenKnifeMenu(IPlayer player)
+    {
+        if (!ItemPermissionService.CanUseKnifeSkins(player.SteamID)) return;
+        var menu = BuildKnifeSkinMenu(player);
+        Core.MenusAPI.OpenMenuForPlayer(player, menu);
+    }
+
+    public void OpenGloveMenu(IPlayer player)
+    {
+        if (!ItemPermissionService.CanUseGloveSkins(player.SteamID)) return;
+        var menu = BuildGloveSkinMenu(player);
+        Core.MenusAPI.OpenMenuForPlayer(player, menu);
+    }
+
+    public void OpenAgentMenu(IPlayer player)
+    {
+        if (!ItemPermissionService.CanUseAgents(player.SteamID)) return;
+        var menu = BuildAgentMenu(player);
+        Core.MenusAPI.OpenMenuForPlayer(player, menu);
+    }
+
+    public void OpenKeychainMenu(IPlayer player)
+    {
+        if (!ItemPermissionService.CanUseKeychains(player.SteamID)) return;
+        if (!TryGetWeaponDataInHand(player, out var dataInHand)) return;
+        _keychainOperatingWeaponSkins[player.SteamID] = dataInHand;
+        var menu = BuildKeychainMenu(player);
+        Core.MenusAPI.OpenMenuForPlayer(player, menu);
+    }
+
+    public void OpenMusicKitMenu(IPlayer player)
+    {
+        if (!ItemPermissionService.CanUseMusicKits(player.SteamID)) return;
+        var menu = BuildMusicKitMenu(player);
+        Core.MenusAPI.OpenMenuForPlayer(player, menu);
+    }
+
     public bool TryGetWeaponInHand(IPlayer player,
         [MaybeNullWhen(false)] out CBasePlayerWeapon weaponInHand)
     {

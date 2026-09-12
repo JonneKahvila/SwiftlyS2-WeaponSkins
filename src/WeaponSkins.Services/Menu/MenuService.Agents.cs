@@ -20,7 +20,7 @@ public partial class MenuService
         return option;
     }
 
-    private IMenuAPI BuildAgentMenu(IPlayer player)
+    public IMenuAPI BuildAgentMenu(IPlayer player)
     {
         var main = Core.MenusAPI.CreateBuilder();
         main.Design.SetMenuTitle(LocalizationService[player].MenuTitleAgents);
