@@ -300,21 +300,27 @@ public class EconService
 
     public string GetLocalizedName(Dictionary<string, string> localizedNames, string key)
     {
-        if (!LanguageCodeToTranslationKey.TryGetValue(key, out string? translationKey))
+        if (localizedNames == null || localizedNames.Count == 0)
         {
-            Logger.LogWarning($"Language code {key} not found in LanguageCodeToTranslationKey, using primary language {_PrimaryLanguage}...");
-            return localizedNames[_PrimaryLanguage];
+            return string.Empty;
         }
-        if (localizedNames.TryGetValue(translationKey, out string? value))
+
+        if (LanguageCodeToTranslationKey.TryGetValue(key, out string? translationKey) && localizedNames.TryGetValue(translationKey, out string? value))
         {
             return value;
         }
-        // hard-coded english fallback
+
         if (localizedNames.TryGetValue(_PrimaryLanguage, out string? value2))
         {
             return value2;
         }
-        return localizedNames["english"];
+
+        if (localizedNames.TryGetValue("english", out string? value3))
+        {
+            return value3;
+        }
+
+        return localizedNames.Values.FirstOrDefault() ?? string.Empty;
     }
 
     private Dictionary<string, string> GetLocalizedNames(string key)

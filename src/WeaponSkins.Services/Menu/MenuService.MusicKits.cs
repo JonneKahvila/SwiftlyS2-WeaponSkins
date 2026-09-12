@@ -22,6 +22,10 @@ public partial class MenuService
         foreach (var musicKit in EconService.MusicKits.Values.OrderBy(mk => mk.Index))
         {
             var musicKitName = EconService.GetLocalizedName(musicKit.LocalizedNames, player.PlayerLanguage.Value);
+            if (string.IsNullOrWhiteSpace(musicKitName))
+            {
+                musicKitName = musicKit.Name;
+            }
 
             var truncatedName = musicKitName.Length > 30 ? musicKitName.Substring(0, 27) + "..." : musicKitName;
             var index = musicKit.Index;
