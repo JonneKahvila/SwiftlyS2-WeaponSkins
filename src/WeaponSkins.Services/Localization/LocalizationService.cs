@@ -72,4 +72,40 @@ public class PlayerLocalizationService
         Localizer["menu.skinproperties.stattrakcount", stattrak];
 
     public string MenuUnset => Localizer["menu.unset"];
+
+    // Panorama panel (PanelService)
+    public string PanelBrand => Localizer["panel.brand"];
+    public string PanelLoadout => Localizer["panel.loadout"];
+    public string PanelItems => Localizer["panel.items"];
+    public string PanelBoth => Localizer["panel.both"];
+    public string PanelBothTeams => Localizer["panel.bothteams"];
+    public string PanelNav(string category) => Localizer[$"panel.nav.{category}"];
+    public string PanelBack => Localizer["panel.back"];
+    public string PanelReset => Localizer["panel.reset"];
+    public string PanelWear => Localizer["panel.wear"];
+    public string PanelSeed => Localizer["panel.seed"];
+    public string PanelRandom => Localizer["panel.random"];
+    public string PanelOff => Localizer["panel.off"];
+    public string PanelOn => Localizer["panel.on"];
+    public string PanelStickers => Localizer["panel.stickers"];
+    public string PanelCharm => Localizer["panel.charm"];
+    public string PanelEquip => Localizer["panel.equip"];
+    public string PanelHomeTitle => Localizer["panel.home.title"];
+    public string PanelHomeSubtitle => Localizer["panel.home.subtitle"];
+    public string PanelHomeT => Localizer["panel.home.t"];
+    public string PanelHomeCT => Localizer["panel.home.ct"];
+    public string PanelDefault => Localizer["panel.default"];
+    public string PanelVanilla => Localizer["panel.vanilla"];
+    public string PanelKnife => Localizer["panel.knife"];
+    public string PanelGloves => Localizer["panel.gloves"];
+    public string PanelAgent(string team) => Localizer["panel.agent", team];
+    public string PanelWeapon => Localizer["panel.weapon"];
+    public string PanelMusicKit => Localizer["panel.musickit"];
+    public string PanelCustomize => Localizer["panel.customize"];
+    public string PanelEditing(string team, int count) => Localizer["panel.editing", team, count];
+    public string PanelSaved(string team) => Localizer["panel.saved", team];
+    public string PanelResetDone(string team) => Localizer["panel.resetdone", team];
+    public string PanelAppliesTo(string team) => Localizer["panel.appliesto", team];
+    public string PanelNoPermission => Localizer["panel.nopermission"];
+    public string PanelPage(int page, int total) => Localizer["panel.page", page, total];
 }

@@ -115,16 +115,16 @@ public class HookInventoryUpdateService : IInventoryUpdateService
 
         if (player == null) return HookResult.Continue;
 
+        // Gloves go on only after the agent model is set: SetModel puts the model's own gloves
+        // back, so a glove applied first gets replaced by the agent's default pair.
         Core.Scheduler.NextTick(() =>
         {
-            ApplyPlayerGlove(player);
-            ApplyPlayerAgent(player);
+            ApplyPlayerAgent(player, () => ApplyPlayerGlove(player));
         });
 
         Core.Scheduler.DelayBySeconds(0.1f, () =>
         {
-            ApplyPlayerGlove(player);
-            ApplyPlayerAgent(player);
+            ApplyPlayerAgent(player, () => ApplyPlayerGlove(player));
         });
 
         return HookResult.Continue;
@@ -147,7 +147,10 @@ public class HookInventoryUpdateService : IInventoryUpdateService
         return null;
     }
 
-    private void ApplyPlayerAgent(IPlayer player)
+    /// <param name="onModelSet">Runs once the pawn has its final model (right away when there is
+    /// nothing to change), so gloves can be applied on top of it.</param>
+    private void ApplyPlayerAgent(IPlayer player,
+        Action? onModelSet = null)
     {
         if (!player.IsAlive()) return;
 
@@ -178,7 +181,9 @@ public class HookInventoryUpdateService : IInventoryUpdateService
                     {
                         if (!player.IsAlive()) return;
                         pawn.SetModel(modelPath);
+                        onModelSet?.Invoke();
                     });
+                    return;
                 }
             }
             else if (DataService.AgentDataService.TryGetDefaultModel(player.SteamID, player.Controller.Team,
@@ -195,8 +200,12 @@ public class HookInventoryUpdateService : IInventoryUpdateService
                 {
                     if (!player.IsAlive()) return;
                     pawn.SetModel(defaultModel);
+                    onModelSet?.Invoke();
                 });
+                return;
             }
+
+            onModelSet?.Invoke();
         });
     }
 
@@ -302,9 +311,12 @@ public class HookInventoryUpdateService : IInventoryUpdateService
         {
             if (PlayerService.TryGetPlayer(steamID, out var player))
             {
-                if (player.IsAlive())
+                // Only the glove saved for the team the player is on belongs on their hands; one
+                // saved for the other side applies on their next spawn there.
+                var current = updatedGloves.LastOrDefault(g => g.Team == player.Controller.Team);
+                if (current is not null && player.IsAlive())
                 {
-                    ApplyGlove(player, updatedGloves.Last());
+                    ApplyGlove(player, current);
                 }
             }
         }
@@ -415,6 +427,9 @@ public class HookInventoryUpdateService : IInventoryUpdateService
             ApplyWeaponSkin(player.SteamID, player.Controller.Team, weapon);
         }
     }
+
+    /// <summary>Puts the player's saved glove back on, e.g. after their agent model was changed live.</summary>
+    public void ReapplyGlove(IPlayer player) => ApplyPlayerGlove(player);
 
     private void ApplyPlayerGlove(IPlayer player)
     {
@@ -560,23 +575,46 @@ public class HookInventoryUpdateService : IInventoryUpdateService
         GloveData glove)
     {
         if (!player.IsAlive()) return;
-        ApplyGlove(player.PlayerPawn!, glove);
+        ApplyGlove(player, player.PlayerPawn!, glove);
     }
 
     private void ApplyGlove(IPlayer player,
         CCSPlayerPawn pawn)
     {
         if (!Api.TryGetGloveSkin(player.SteamID, player.Controller.Team, out var glove)) return;
-        ApplyGlove(pawn, glove);
+        ApplyGlove(player, pawn, glove);
     }
 
-    private void ApplyGlove(CCSPlayerPawn pawn,
+    private void ApplyGlove(IPlayer player,
+        CCSPlayerPawn pawn,
         GloveData glove)
     {
         Core.Scheduler.NextTick(() =>
         {
+            if (!pawn.IsValid) return;
+
+            // Editing EconGloves in place repaints the hands but keeps their glove model, so a
+            // different glove type shows the new finish on the old glove. Rebuilding the wearables
+            // first (what the game does from the loadout) lets the new type's model take over;
+            // the fields below then overwrite whatever it put there. Same order as the
+            // cs2-ss2-inventory-simulator's RefreshGloves.
+            if (pawn.ItemServices is { IsValid: true } itemServices)
+            {
+                NativeService.SetWearables?.Call(itemServices.Address);
+            }
+
             var econGloves = pawn.EconGloves;
             econGloves.ItemDefinitionIndex = glove.DefinitionIndex;
+
+            // The gloves live on the pawn, so unlike a freshly given weapon the client sees the
+            // same item being edited. Without a new item ID and a bump of m_nEconGlovesChanged it
+            // keeps its cached glove: you get the old model drawn under the new one, or an
+            // unpainted (black) glove, most visibly after a respawn.
+            var itemId = NextGloveItemId();
+            econGloves.ItemID = itemId;
+            econGloves.ItemIDLow = (uint)(itemId & 0xFFFFFFFF);
+            econGloves.ItemIDHigh = (uint)(itemId >> 32);
+
             econGloves.NetworkedDynamicAttributes.SetOrAddAttribute("set item texture prefab", glove.Paintkit);
             econGloves.NetworkedDynamicAttributes.SetOrAddAttribute("set item texture seed", glove.PaintkitSeed);
             econGloves.NetworkedDynamicAttributes.SetOrAddAttribute("set item texture wear", glove.PaintkitWear);
@@ -584,13 +622,65 @@ public class HookInventoryUpdateService : IInventoryUpdateService
             econGloves.AttributeList.SetOrAddAttribute("set item texture seed", glove.PaintkitSeed);
             econGloves.AttributeList.SetOrAddAttribute("set item texture wear", glove.PaintkitWear);
             econGloves.Initialized = true;
+            pawn.EconGlovesUpdated();
+
+            unchecked { pawn.EconGlovesChanged++; }
+            pawn.EconGlovesChangedUpdated();
+
             pawn.AcceptInput("SetBodygroup", "first_or_third_person,0");
             Core.Scheduler.DelayBySeconds(0.2f, () =>
             {
-                pawn.AcceptInput("SetBodygroup", "first_or_third_person,1");
+                if (pawn.IsValid) pawn.AcceptInput("SetBodygroup", "first_or_third_person,1");
             });
+
+            RefreshViewmodelGloves(player, pawn);
         });
     }
+
+    /// <summary>
+    /// First-person hands are drawn by the active weapon's viewmodel, which keeps the glove it was
+    /// deployed with. Re-deploy it so the new glove shows: a held knife is re-given (the knife
+    /// stays put otherwise; GiveNamedItemPost re-skins the new one), any other weapon is
+    /// re-selected. Same approach as WeaponPaints' GivePlayerGloves.
+    /// </summary>
+    private void RefreshViewmodelGloves(IPlayer player,
+        CCSPlayerPawn pawn)
+    {
+        var active = pawn.WeaponServices?.ActiveWeapon.Value;
+        if (active is null || !active.IsValid) return;
+
+        var definitionIndex = active.AttributeManager.Item.ItemDefinitionIndex;
+        if (Utilities.IsKnifeDefinitionIndex(definitionIndex))
+        {
+            Core.Scheduler.DelayBySeconds(0.06f, () =>
+            {
+                if (!player.IsValid || !player.IsAlive() || !pawn.IsValid) return;
+                pawn.WeaponServices!.RemoveWeaponBySlot(gear_slot_t.GEAR_SLOT_KNIFE);
+                pawn.ItemServices!.GiveItem(player.Controller.Team == Team.T ? "weapon_knife_t" : "weapon_knife");
+                pawn.WeaponServices!.SelectWeaponBySlot(gear_slot_t.GEAR_SLOT_KNIFE);
+            });
+            return;
+        }
+
+        var slot = active.As<CCSWeaponBase>().WeaponBaseVData.GearSlot switch
+        {
+            gear_slot_t.GEAR_SLOT_RIFLE => "slot1",
+            gear_slot_t.GEAR_SLOT_PISTOL => "slot2",
+            _ => null
+        };
+        if (slot is null) return;
+
+        Core.Scheduler.DelayBySeconds(0.05f, () =>
+        {
+            if (player.IsValid && player.IsAlive()) player.ExecuteCommand(slot);
+        });
+    }
+
+    // Above any real inventory ID a client could already have cached; same floor WeaponPaints uses.
+    private const ulong FirstGloveItemId = 65578;
+    private long _nextGloveItemId = (long)FirstGloveItemId;
+
+    private ulong NextGloveItemId() => (ulong)Interlocked.Increment(ref _nextGloveItemId);
 
     public void UpdateMusicKit(ulong steamid, int musicKitIndex)
     {

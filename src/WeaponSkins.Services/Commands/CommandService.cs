@@ -14,6 +14,7 @@ public partial class CommandService : IDisposable
     private ISwiftlyCore Core { get; init; }
     private ILogger Logger { get; init; }
     private MenuService MenuService { get; init; }
+    private PanelService PanelService { get; init; }
     private ItemPermissionService ItemPermissionService { get; init; }
 
     private readonly IDisposable? _configChangeSubscription;
@@ -23,12 +24,14 @@ public partial class CommandService : IDisposable
     public CommandService(ISwiftlyCore core,
         ILogger<CommandService> logger,
         MenuService menuService,
+        PanelService panelService,
         ItemPermissionService itemPermissionService,
         IOptionsMonitor<MainConfigModel> options)
     {
         Core = core;
         Logger = logger;
         MenuService = menuService;
+        PanelService = panelService;
         ItemPermissionService = itemPermissionService;
 
         _permission = options.CurrentValue.MenuPermission ?? "";
@@ -53,7 +56,8 @@ public partial class CommandService : IDisposable
 
     public void RegisterCommands()
     {
-        RegisterCommand("ws", CommandSkin, "Opens the main weapon skins menu.");
+        RegisterCommand("ws", CommandSkin, "Opens the weapon skins panel.");
+        RegisterCommand("wsmenu", CommandNativeMenu, "Opens the classic weapon skins menu.");
 
         RegisterCommand("knife", CommandKnife, "Opens the knife skins menu.");
         RegisterCommand("knives", CommandKnife, "Opens the knife skins menu.");
@@ -101,6 +105,26 @@ public partial class CommandService : IDisposable
             return;
         }
 
+        var player = context.Sender!;
+        if (PanelService.IsOpen(player))
+        {
+            // !ws again closes it, so a bound key works as a toggle.
+            PanelService.Close(player);
+            return;
+        }
+
+        if (PanelService.Show(player)) return;
+        MenuService.OpenMainMenu(player);
+    }
+
+    private void CommandNativeMenu(ICommandContext context)
+    {
+        if (!context.IsSentByPlayer)
+        {
+            context.Reply("This command can only be used by players.");
+            return;
+        }
+
         MenuService.OpenMainMenu(context.Sender!);
     }
 
@@ -119,6 +143,7 @@ public partial class CommandService : IDisposable
             return;
         }
 
+        if (PanelService.Show(player, PanelCategory.Knives)) return;
         MenuService.OpenKnifeMenu(player);
     }
 
@@ -137,6 +162,7 @@ public partial class CommandService : IDisposable
             return;
         }
 
+        if (PanelService.Show(player, PanelCategory.Gloves)) return;
         MenuService.OpenGloveMenu(player);
     }
 
@@ -155,6 +181,7 @@ public partial class CommandService : IDisposable
             return;
         }
 
+        if (PanelService.Show(player, PanelCategory.Agents)) return;
         MenuService.OpenAgentMenu(player);
     }
 
@@ -191,6 +218,7 @@ public partial class CommandService : IDisposable
             return;
         }
 
+        if (PanelService.Show(player, PanelCategory.Music)) return;
         MenuService.OpenMusicKitMenu(player);
     }
 
@@ -209,6 +237,7 @@ public partial class CommandService : IDisposable
             return;
         }
 
+        if (PanelService.ShowWeaponInHand(player)) return;
         MenuService.OpenWeaponSkinMenu(player);
     }
 

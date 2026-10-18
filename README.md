@@ -62,6 +62,25 @@ Permission required to run the `ws` menu command. Leave empty (the default) to l
 This gates the command itself, so players without it get the standard "no permission" response instead of a
 menu full of disabled entries. Changing it takes effect on config reload — no server restart needed.
 
+## Skin Panel
+`!ws` opens a clickable Panorama panel: sidebar categories, a T/CT loadout overview, a card grid of
+finishes, and a detail view with wear, pattern seed and StatTrak presets. `!knife`, `!gloves`, `!agents`,
+`!music` and `!skins` open it at that category (`!skins` jumps to the weapon in hand). Running `!ws`
+again closes it. Stickers, charms and name tags still use the classic menu, opened from the panel.
+
+The panel's layout ships in the `jk_hud` client addon ([cs2-hud-jk](https://github.com/JonneKahvila/cs2-hud-jk)),
+so clients need that addon mounted. If the HUD can't be spawned, or `PanelEnabled` is false, the commands
+open the classic menu instead. `!wsmenu` always opens the classic menu.
+
+```jsonc
+{
+  "WeaponSkins": {
+    "PanelEnabled": true,
+    "PanelLayoutPath": "panorama/layout/custom_game/jk_skins.xml"
+  }
+}
+```
+
 ## Item Permissions
 Gate entire feature groups with a single permission string in `config.jsonc`:
 ```jsonc
