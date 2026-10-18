@@ -302,9 +302,12 @@ public class HookInventoryUpdateService : IInventoryUpdateService
         {
             if (PlayerService.TryGetPlayer(steamID, out var player))
             {
-                if (player.IsAlive())
+                // Only the glove saved for the team the player is on belongs on their hands; one
+                // saved for the other side applies on their next spawn there.
+                var current = updatedGloves.LastOrDefault(g => g.Team == player.Controller.Team);
+                if (current is not null && player.IsAlive())
                 {
-                    ApplyGlove(player, updatedGloves.Last());
+                    ApplyGlove(player, current);
                 }
             }
         }
@@ -575,8 +578,20 @@ public class HookInventoryUpdateService : IInventoryUpdateService
     {
         Core.Scheduler.NextTick(() =>
         {
+            if (!pawn.IsValid) return;
+
             var econGloves = pawn.EconGloves;
             econGloves.ItemDefinitionIndex = glove.DefinitionIndex;
+
+            // The gloves live on the pawn, so unlike a freshly given weapon the client sees the
+            // same item being edited. Without a new item ID and a bump of m_nEconGlovesChanged it
+            // keeps its cached glove: you get the old model drawn under the new one, or an
+            // unpainted (black) glove, most visibly after a respawn.
+            var itemId = NextGloveItemId();
+            econGloves.ItemID = itemId;
+            econGloves.ItemIDLow = (uint)(itemId & 0xFFFFFFFF);
+            econGloves.ItemIDHigh = (uint)(itemId >> 32);
+
             econGloves.NetworkedDynamicAttributes.SetOrAddAttribute("set item texture prefab", glove.Paintkit);
             econGloves.NetworkedDynamicAttributes.SetOrAddAttribute("set item texture seed", glove.PaintkitSeed);
             econGloves.NetworkedDynamicAttributes.SetOrAddAttribute("set item texture wear", glove.PaintkitWear);
@@ -584,13 +599,24 @@ public class HookInventoryUpdateService : IInventoryUpdateService
             econGloves.AttributeList.SetOrAddAttribute("set item texture seed", glove.PaintkitSeed);
             econGloves.AttributeList.SetOrAddAttribute("set item texture wear", glove.PaintkitWear);
             econGloves.Initialized = true;
+            pawn.EconGlovesUpdated();
+
+            unchecked { pawn.EconGlovesChanged++; }
+            pawn.EconGlovesChangedUpdated();
+
             pawn.AcceptInput("SetBodygroup", "first_or_third_person,0");
             Core.Scheduler.DelayBySeconds(0.2f, () =>
             {
-                pawn.AcceptInput("SetBodygroup", "first_or_third_person,1");
+                if (pawn.IsValid) pawn.AcceptInput("SetBodygroup", "first_or_third_person,1");
             });
         });
     }
+
+    // Above any real inventory ID a client could already have cached; same floor WeaponPaints uses.
+    private const ulong FirstGloveItemId = 65578;
+    private long _nextGloveItemId = (long)FirstGloveItemId;
+
+    private ulong NextGloveItemId() => (ulong)Interlocked.Increment(ref _nextGloveItemId);
 
     public void UpdateMusicKit(ulong steamid, int musicKitIndex)
     {
