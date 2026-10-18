@@ -147,6 +147,8 @@ public partial class MenuService
             {
                 if (!player.IsAlive()) return;
                 pawn.SetModel(modelPath);
+                // SetModel brings back the model's own gloves.
+                InventoryService.ReapplyGlove(player);
             });
         });
     }

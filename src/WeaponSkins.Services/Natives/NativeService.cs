@@ -29,6 +29,11 @@ public class NativeService
 
     public IUnmanagedFunction<GiveNamedItemDelegate>? GiveNamedItem { get; init; }
 
+    public delegate void SetWearablesDelegate(nint pItemServices);
+
+    /// <summary>CCSPlayer_ItemServices::SetWearables: rebuilds the pawn's wearables (gloves) from scratch.</summary>
+    public IUnmanagedFunction<SetWearablesDelegate>? SetWearables { get; init; }
+
     public NativeService(ISwiftlyCore core,
         ILogger<NativeService> logger)
     {
@@ -45,6 +50,19 @@ public class NativeService
         {
             Logger.LogError(e, "Error getting GiveNamedItem");
             GiveNamedItem = null;
+        }
+
+        try
+        {
+            SetWearables = Core.Memory.GetUnmanagedFunctionByAddress<SetWearablesDelegate>(
+                Core.GameData.GetSignature("CCSPlayer_ItemServices::SetWearables")
+            );
+        }
+        catch (Exception e)
+        {
+            // Not fatal: gloves still apply, but a glove type change only shows its model after a respawn.
+            Logger.LogError(e, "Error getting CCSPlayer_ItemServices::SetWearables");
+            SetWearables = null;
         }
 
         if (GiveNamedItem != null)

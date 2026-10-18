@@ -25,6 +25,7 @@ public partial class MenuService
     private LocalizationService LocalizationService { get; init; }
     private ItemPermissionService ItemPermissionService { get; init; }
     private DataService DataService { get; init; }
+    private HookInventoryUpdateService InventoryService { get; init; }
 
     public MenuService(ISwiftlyCore core,
         ILogger<MenuService> logger,
@@ -32,7 +33,8 @@ public partial class MenuService
         EconService econService,
         LocalizationService localizationService,
         ItemPermissionService itemPermissionService,
-        DataService dataService)
+        DataService dataService,
+        HookInventoryUpdateService inventoryService)
     {
         Core = core;
         Logger = logger;
@@ -41,6 +43,7 @@ public partial class MenuService
         LocalizationService = localizationService;
         ItemPermissionService = itemPermissionService;
         DataService = dataService;
+        InventoryService = inventoryService;
     }
 
     public void OpenMainMenu(IPlayer player)
