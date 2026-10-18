@@ -110,6 +110,15 @@ public partial class MenuService
         Core.MenusAPI.OpenMenuForPlayer(player, menu);
     }
 
+    public void OpenStickerMenu(IPlayer player)
+    {
+        if (!ItemPermissionService.CanUseStickers(player.SteamID)) return;
+        if (!TryGetWeaponDataInHand(player, out var dataInHand)) return;
+        _stickerOperatingWeaponSkins[player.SteamID] = dataInHand;
+        var menu = BuildStickerMenu(player);
+        Core.MenusAPI.OpenMenuForPlayer(player, menu);
+    }
+
     public void OpenMusicKitMenu(IPlayer player)
     {
         if (!ItemPermissionService.CanUseMusicKits(player.SteamID)) return;
